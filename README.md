@@ -1,2 +1,239 @@
-# AVOID-GAME
-This is a game hard
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>IMPOSSIBLE GAME BY LORD DAMUT</title>
+
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: black;
+  color: white;
+  font-family: Arial;
+}
+
+.menu, .howto {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: black;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+button {
+  padding: 15px 30px;
+  margin: 10px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+#score {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 20px;
+  display: none;
+}
+
+#gameOver {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 40px;
+  display: none;
+  text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="menu" id="menu">
+  <h1>AVOID</h1>
+  <button onclick="startGame()">PLAY</button>
+  <button onclick="showHowTo()">HOW TO PLAY</button>
+</div>
+
+<div class="howto" id="howto" style="display:none;">
+  <h2>HOW TO PLAY</h2>
+  <p>IN GAME II YOU HAVE TO AVOID ALL THE RED BALLS, IF YOU DIE YOU LOSE, AND THERE IS A SCORE THERE, IF YOUR SCORE IS BAD, THAT MEANS YOU ARE BAD, GOOD LUCK, YOU ARE BAD</P>
+  
+  <button onclick="backMenu()">BACK</button>
+</div>
+
+<div id="score">Score: 0</div>
+
+<div id="gameOver">
+  GAME OVER<br>
+  <span style="font-size:20px;">Press "ENTER" for replay</span>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let player, obstacles, score, gameOver, started;
+let keys = {};
+
+// kontrol
+document.addEventListener("keydown", e => {
+  keys[e.key] = true;
+
+  if (gameOver && e.key === "Enter") {
+    resetGame();
+  }
+});
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+// UI
+function startGame() {
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("score").style.display = "block";
+  document.body.style.cursor = "none";
+  started = true;
+  resetGame();
+}
+
+function showHowTo() {
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("howto").style.display = "flex";
+}
+
+function backMenu() {
+  document.getElementById("howto").style.display = "none";
+  document.getElementById("menu").style.display = "flex";
+}
+
+// reset
+function resetGame() {
+  player = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    size: 15,
+    speed: 7
+  };
+
+  obstacles = [];
+  score = 0;
+  gameOver = false;
+
+  document.getElementById("gameOver").style.display = "none";
+  document.body.style.cursor = "none";
+}
+
+// spawn DASH super cepat
+function spawnObstacle() {
+  let side = Math.floor(Math.random() * 4);
+  let x, y;
+
+  if (side === 0) { x = 0; y = Math.random() * canvas.height; }
+  if (side === 1) { x = canvas.width; y = Math.random() * canvas.height; }
+  if (side === 2) { x = Math.random() * canvas.width; y = 0; }
+  if (side === 3) { x = Math.random() * canvas.width; y = canvas.height; }
+
+  let dx = player.x - x;
+  let dy = player.y - y;
+  let dist = Math.sqrt(dx * dx + dy * dy);
+
+  // 💀 SPEED NERAKA
+  let speed = 14 + Math.random() * 8 + (score / 3);
+
+  let vx = (dx / dist) * speed;
+  let vy = (dy / dist) * speed;
+
+  obstacles.push({
+    x, y,
+    vx, vy,
+    size: 10 + Math.random() * 15,
+    counted: false
+  });
+}
+
+// update
+function update() {
+  if (!started || gameOver) return;
+
+  // gerak player
+  if (keys["w"] || keys["ArrowUp"]) player.y -= player.speed;
+  if (keys["s"] || keys["ArrowDown"]) player.y += player.speed;
+  if (keys["a"] || keys["ArrowLeft"]) player.x -= player.speed;
+  if (keys["d"] || keys["ArrowRight"]) player.x += player.speed;
+
+  player.x = Math.max(0, Math.min(canvas.width, player.x));
+  player.y = Math.max(0, Math.min(canvas.height, player.y));
+
+  // obstacle
+  for (let o of obstacles) {
+    o.x += o.vx;
+    o.y += o.vy;
+
+    let dx = player.x - o.x;
+    let dy = player.y - o.y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+
+    // tabrakan
+    if (dist < player.size + o.size) {
+      gameOver = true;
+      document.getElementById("gameOver").style.display = "block";
+      document.body.style.cursor = "default";
+    }
+
+    // skor
+    if (!o.counted && dist > 200) {
+      score++;
+      o.counted = true;
+    }
+  }
+
+  document.getElementById("score").innerText = "Score: " + score;
+
+  // 💀 spawn lebih sering
+  if (Math.random() < 0.08) {
+    spawnObstacle();
+  }
+}
+
+// draw
+function draw() {
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (!started) return;
+
+  // player
+  ctx.fillStyle = "lime";
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+  ctx.fill();
+
+  // obstacle
+  ctx.fillStyle = "red";
+  for (let o of obstacles) {
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// loop
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+
+</body>
+</html>
